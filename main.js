@@ -1,77 +1,167 @@
-import "./style.css";
 import * as THREE from "three";
+import { TrackballControls } from "three/examples/jsm/controls/TrackballControls.js";
+import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 
-const scene = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera(
-  70,
-  window.innerWidth / window.innerHeight,
-  0.1,
-  1000
-);
-const renderer = new THREE.WebGLRenderer({
-  canvas: document.querySelector("#bg"),
-  alpha: true, // transparent background
-  premultipliedAlpha: false,
-});
+function main() {
+  const canvas = document.createElement("canvas");
+  const renderer = new THREE.WebGLRenderer({ canvas, alpha: true });
+  renderer.setScissorTest(true);
 
-// const gridHelper = new THREE.GridHelper(30, 30);
-// scene.add(gridHelper);
-
-// Scene objects
-const material = new THREE.MeshBasicMaterial({
-  color: 0x22bbaa,
-  wireframe: true,
-});
-
-const pointLight = new THREE.PointLight(0xffffff, 2, 100);
-pointLight.position.set(-6, 6, 0);
-const ambientLight = new THREE.AmbientLight(0xffffff);
-scene.add(pointLight, ambientLight);
-
-// GLTF object import
-let medallion;
-const loader = new GLTFLoader();
-loader.load(
-  "3D Models/HubbleMedallion.glb",
-  function (gltf) {
-    medallion = gltf.scene.children[0];
-    scene.add(medallion);
-  },
-  undefined,
-  function (error) {
-    console.error(error);
-  }
-);
-
-camera.position.y = 11;
-camera.rotation.x = -90 * THREE.Math.DEG2RAD;
-
-// RENDER
-function animate(time) {
-  requestAnimationFrame(animate);
-
-  time *= 0.001; //seconds
-
-  if (resizeRendererToDisplaySize(renderer)) {
-    const canvas = renderer.domElement;
-    camera.aspect = canvas.clientWidth / canvas.clientHeight;
-    camera.updateProjectionMatrix();
+  const sceneElements = [];
+  function addScene(elem, fn) {
+    const ctx = document.createElement("canvas").getContext("2d");
+    elem.appendChild(ctx.canvas);
+    sceneElements.push({ elem, ctx, fn });
   }
 
-  medallion.rotation.z = time * 0.4;
+  function makeScene(elem) {
+    const scene = new THREE.Scene();
 
-  renderer.render(scene, camera);
+    const fov = 45;
+    const aspect = 2; // the canvas default
+    const near = 0.1;
+    const far = 10;
+    const camera = new THREE.PerspectiveCamera(fov, aspect, near, far);
+    camera.position.set(0, 1, 2.5);
+    camera.lookAt(0, 0, 0);
+    scene.add(camera);
+
+    const controls = new TrackballControls(camera, elem);
+    controls.noZoom = false;
+    controls.noPan = true;
+    controls.target.set(0, 0, 0);
+
+    {
+      const light = new THREE.AmbientLight(0x404040); // soft white light
+      scene.add(light);
+    }
+    {
+      const pointLight = new THREE.PointLight(0xffffff);
+      camera.add(pointLight);
+    }
+    {
+      const pointLight = new THREE.PointLight(0xffffff);
+      pointLight.position.set(0, 5, 5);
+      scene.add(pointLight);
+    }
+
+    return { scene, camera, controls };
+  }
+
+  const sceneInitFunctionsByName = {
+    ingenuity: (elem) => {
+      const { scene, camera, controls } = makeScene(elem);
+
+      let model;
+      const loader = new GLTFLoader();
+      loader.load(
+        "./3D Models/Ingenuity.glb",
+        function (gltf) {
+          model = gltf.scene;
+          scene.add(model);
+        },
+        undefined,
+        function (error) {
+          console.error(error);
+        }
+      );
+
+      return (time, rect) => {
+        if (model) model.rotation.y = time * 0.1;
+        camera.aspect = rect.width / rect.height;
+        camera.updateProjectionMatrix();
+        controls.handleResize();
+        controls.update();
+        renderer.render(scene, camera);
+      };
+    },
+    medallion: (elem) => {
+      const { scene, camera, controls } = makeScene(elem);
+
+      let model;
+      const loader = new GLTFLoader();
+      loader.load(
+        "./3D Models/HubbleMedallion.glb",
+        function (gltf) {
+          model = gltf.scene;
+          scene.add(model);
+        },
+        undefined,
+        function (error) {
+          console.error(error);
+        }
+      );
+      return (time, rect) => {
+        if (model) model.rotation.y = time * 0.1;
+        camera.aspect = rect.width / rect.height;
+        camera.updateProjectionMatrix();
+        controls.handleResize();
+        controls.update();
+        renderer.render(scene, camera);
+      };
+    },
+  };
+
+  document.querySelectorAll("[data-diagram]").forEach((elem) => {
+    const sceneName = elem.dataset.diagram;
+    const sceneInitFunction = sceneInitFunctionsByName[sceneName];
+    const sceneRenderFunction = sceneInitFunction(elem);
+    addScene(elem, sceneRenderFunction);
+  });
+
+  function render(time) {
+    time *= 0.001;
+
+    for (const { elem, fn, ctx } of sceneElements) {
+      // get the viewport relative position of this element
+      const rect = elem.getBoundingClientRect();
+      const { left, right, top, bottom, width, height } = rect;
+      const rendererCanvas = renderer.domElement;
+
+      const isOffscreen =
+        bottom < 0 ||
+        top > window.innerHeight ||
+        right < 0 ||
+        left > window.innerWidth;
+
+      if (!isOffscreen) {
+        // make sure the renderer's canvas is big enough
+        if (rendererCanvas.width < width || rendererCanvas.height < height) {
+          renderer.setSize(width, height, false);
+        }
+
+        // make sure the canvas for this area is the same size as the area
+        if (ctx.canvas.width !== width || ctx.canvas.height !== height) {
+          ctx.canvas.width = width;
+          ctx.canvas.height = height;
+        }
+
+        renderer.setScissor(0, 0, width, height);
+        renderer.setViewport(0, 0, width, height);
+
+        fn(time, rect);
+
+        // copy the rendered scene to this element's canvas
+        ctx.globalCompositeOperation = "copy";
+        ctx.drawImage(
+          rendererCanvas,
+          0,
+          rendererCanvas.height - height,
+          width,
+          height, // src rect
+          0,
+          0,
+          width,
+          height
+        ); // dst rect
+      }
+    }
+
+    requestAnimationFrame(render);
+  }
+
+  requestAnimationFrame(render);
 }
-animate();
-//
-function resizeRendererToDisplaySize(renderer) {
-  const canvas = renderer.domElement;
-  const width = canvas.clientWidth;
-  const height = canvas.clientHeight;
-  const needResize = canvas.width !== width || canvas.height !== height;
-  if (needResize) {
-    renderer.setSize(width, height, false);
-  }
-  return needResize;
-}
+
+main();
