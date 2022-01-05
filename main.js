@@ -1,6 +1,8 @@
 import * as THREE from "three";
 import { TrackballControls } from "three/examples/jsm/controls/TrackballControls.js";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
+import ingenuityURL from "./3D Models/Ingenuity.glb?url";
+import medallionURL from "./3D Models/HubbleMedallion.glb?url";
 
 function main() {
   const canvas = document.createElement("canvas");
@@ -65,7 +67,7 @@ function main() {
       let model;
       const loader = new GLTFLoader();
       loader.load(
-        "./3D Models/Ingenuity.glb",
+        ingenuityURL,
         function (gltf) {
           model = gltf.scene;
           scene.add(model);
@@ -91,7 +93,7 @@ function main() {
       let model;
       const loader = new GLTFLoader();
       loader.load(
-        "./3D Models/HubbleMedallion.glb",
+        medallionURL,
         function (gltf) {
           model = gltf.scene;
           scene.add(model);
