@@ -1,6 +1,5 @@
 import * as THREE from "three";
 import { TrackballControls } from "three/examples/jsm/controls/TrackballControls.js";
-import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 
 function main() {
@@ -18,33 +17,43 @@ function main() {
   function makeScene(elem) {
     const scene = new THREE.Scene();
 
-    const fov = 45;
+    const fov = 40;
     const aspect = 2; // the canvas default
     const near = 0.1;
-    const far = 10;
+    const far = 20;
     const camera = new THREE.PerspectiveCamera(fov, aspect, near, far);
     camera.position.set(0, 1, 2.5);
     camera.lookAt(0, 0, 0);
     scene.add(camera);
 
     const controls = new TrackballControls(camera, elem);
-    controls.noZoom = false;
+    controls.noZoom = true;
     controls.noPan = true;
     controls.target.set(0, 0, 0);
 
     {
-      const light = new THREE.AmbientLight(0x404040); // soft white light
+      const light = new THREE.AmbientLight(0xffffff);
       scene.add(light);
     }
     {
-      const pointLight = new THREE.PointLight(0xffffff);
-      camera.add(pointLight);
+      const light = new THREE.DirectionalLight("0xffffff", 4);
+      light.position.set(10, 10, 10);
+      scene.add(light);
     }
     {
-      const pointLight = new THREE.PointLight(0xffffff);
-      pointLight.position.set(0, 5, 5);
-      scene.add(pointLight);
+      const light = new THREE.DirectionalLight("0xffffff", 2);
+      light.position.set(-10, -10, -10);
+      scene.add(light);
     }
+    // {
+    //   const pointLight = new THREE.PointLight(0x404040);
+    //   camera.add(pointLight);
+    // }
+    // {
+    //   const pointLight = new THREE.PointLight(0xffffff);
+    //   pointLight.position.set(0, -5, -5);
+    //   scene.add(pointLight);
+    // }
 
     return { scene, camera, controls };
   }
@@ -93,7 +102,7 @@ function main() {
         }
       );
       return (time, rect) => {
-        if (model) model.rotation.y = time * 0.1;
+        if (model) model.rotation.y = time * 0.15;
         camera.aspect = rect.width / rect.height;
         camera.updateProjectionMatrix();
         controls.handleResize();
