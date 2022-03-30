@@ -6,7 +6,7 @@ import medallionURL from "./3D Models/HubbleMedallion.glb?url";
 
 function main() {
   const canvas = document.createElement("canvas");
-  const renderer = new THREE.WebGLRenderer({ canvas, alpha: true });
+  const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
   renderer.setScissorTest(true);
 
   const sceneElements = [];
@@ -47,15 +47,6 @@ function main() {
       light.position.set(-10, -10, -10);
       scene.add(light);
     }
-    // {
-    //   const pointLight = new THREE.PointLight(0x404040);
-    //   camera.add(pointLight);
-    // }
-    // {
-    //   const pointLight = new THREE.PointLight(0xffffff);
-    //   pointLight.position.set(0, -5, -5);
-    //   scene.add(pointLight);
-    // }
 
     return { scene, camera, controls };
   }
